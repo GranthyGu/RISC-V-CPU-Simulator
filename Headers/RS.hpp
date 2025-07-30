@@ -3,16 +3,16 @@
 
 #include "Decoder.hpp"
 #include "RegisterFile.hpp"
-#include "ROB.hpp"
 
+namespace Granthy {
 struct RS_entry {
     bool busy = false;
     operation opr;
     size_t index = 0;
     uint32_t vj = 0;
     uint32_t vk = 0;
-    size_t Qj = -1;
-    size_t Qk = -1;
+    uint32_t Qj = -1;
+    uint32_t Qk = -1;
     size_t Dest = 0;
     uint32_t imm = 0;
 };
@@ -51,7 +51,7 @@ public:
             }
         }
     }
-    bool set_input_by_decoder(decoder_output decode, Register& reg, table ROB_order) {
+    bool set_input_by_decoder(decoder_output decode, Register& reg, uint32_t ROB_order, uint32_t ROB_cur_PC) {
         if (input.busy) {
             return false;
         }
@@ -59,7 +59,7 @@ public:
         new_entry.busy = true;
         new_entry.opr = decode.opr;
         new_entry.Dest = decode.value_1;
-        new_entry.index = ROB_order.index;
+        new_entry.index = ROB_order;
         if (decode.opr == operation::Add || decode.opr == operation::Sub || decode.opr == operation::And 
             || decode.opr == operation::Or || decode.opr == operation::Xor || decode.opr == operation::Sll 
             || decode.opr == operation::Srl || decode.opr == operation::Sra || decode.opr == operation::Slt 
@@ -111,13 +111,13 @@ public:
             } else {
                 new_entry.vk = reg.read_register(r2);
             }
-        } else if (decode.opr == operation::Auipc) {
+        } else if (decode.opr == operation::Auipc || decode.opr == operation::Lui) {
             new_entry.imm = decode.value_2;
-            new_entry.vj = ROB_order.cur_PC;
+            new_entry.vj = ROB_cur_PC;
         } else if (decode.opr == operation::Jalr) {
             new_entry.imm = 4;
             int r2 = decode.value_2;
-            new_entry.vj = ROB_order.cur_PC;
+            new_entry.vj = ROB_cur_PC;
             if (reg.get_reordered_id(r2) != -1) {
                 new_entry.Qk = reg.get_reordered_id(r2);
             } else {
@@ -125,7 +125,7 @@ public:
             }
         } else if (decode.opr == operation::Jal) {
             new_entry.imm = 4;
-            new_entry.vj = ROB_order.cur_PC;
+            new_entry.vj = ROB_cur_PC;
         } else if (decode.opr == operation::Sb || decode.opr == operation::Sh || decode.opr == operation::Sw ) {
             new_entry.imm = decode.value_3;
             int r1 = decode.value_2;
@@ -144,24 +144,25 @@ public:
         input = new_entry;
         return true;
     }
-    void get_broadcast_from_ROB(ROB_output broadcast, Register reg) {
-        int index = broadcast.index;
+    void get_broadcast_from_ROB(uint32_t index, uint32_t dest, Register reg) {
         if (input.Qj == index) {
             input.Qj = -1;
-            input.vj = reg.read_register(broadcast.info.dest);
+            input.vj = reg.read_register(dest);
         }
         if (input.Qk == index) {
             input.Qk = -1;
-            input.vk = reg.read_register(broadcast.info.dest);
+            input.vk = reg.read_register(dest);
         }
-        for (int i = 0; i < size_; i++) {
-            if (Reservation_station[i].Qj == index) {
-                Reservation_station[i].Qj = -1;
-                Reservation_station[i].vj = reg.read_register(broadcast.info.dest);
-            }
-            if (Reservation_station[i].Qk == index) {
-                Reservation_station[i].Qk = -1;
-                Reservation_station[i].vk = reg.read_register(broadcast.info.dest);
+        for (int i = 0; i < 8; i++) {
+            if (Reservation_station[i].busy) {
+                if (Reservation_station[i].Qj == index) {
+                    Reservation_station[i].Qj = -1;
+                    Reservation_station[i].vj = reg.read_register(dest);
+                }
+                if (Reservation_station[i].Qk == index) {
+                    Reservation_station[i].Qk = -1;
+                    Reservation_station[i].vk = reg.read_register(dest);
+                }
             }
         }
     }
@@ -173,5 +174,6 @@ public:
         }
     }
 };
+}
 
 #endif      // RS_HPP

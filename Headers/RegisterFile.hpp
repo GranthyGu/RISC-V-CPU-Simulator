@@ -3,8 +3,9 @@
 
 #include <iostream>
 #include <cstdint>
-#include "ROB.hpp"
+#include "Decoder.hpp"
 
+namespace Granthy {
 class Register {
   private:
     uint32_t registers[32] = {0};
@@ -35,16 +36,20 @@ class Register {
         reordered_id[index_reg] = index_ROB;
     }
     int get_reordered_id(int index_reg) {return reordered_id[index_reg];}
-    void get_broadcast_from_ROB(ROB_output broadcast) {
-        if (reordered_id[broadcast.info.dest] == broadcast.index) {
-            reordered_id[broadcast.info.dest] = -1;
+    void get_broadcast_from_ROB(uint32_t dest, operation opr, uint32_t value, uint32_t index) {
+        if (opr == operation::Stop) {
+            return;
         }
-        if (broadcast.info.opr != operation::Sb && broadcast.info.opr != operation::Sh && broadcast.info.opr != operation::Sw &&
-            broadcast.info.opr != operation::Beq && broadcast.info.opr != operation::Bge && broadcast.info.opr != operation::Bgeu &&
-            broadcast.info.opr != operation::Blt && broadcast.info.opr != operation::Bltu && broadcast.info.opr != operation::Bne) {
-            registers[broadcast.info.dest] = broadcast.info.value;
+        if (reordered_id[dest] == index) {
+            reordered_id[dest] = -1;
+        }
+        if (opr != operation::Sb && opr != operation::Sh && opr != operation::Sw &&
+            opr != operation::Beq && opr != operation::Bge && opr != operation::Bgeu &&
+            opr != operation::Blt && opr != operation::Bltu && opr != operation::Bne && dest != 0) {
+            registers[dest] = value;
         }
     }
 };
+}
 
 #endif      // REGISTER_FILE_HPP

@@ -8,6 +8,7 @@
 #include "Memory.hpp"
 #include "ALU.hpp"
 
+namespace Granthy {
 
 struct table {
     operation opr;
@@ -47,6 +48,7 @@ public:
         }
         if (!output.info.busy && buffer[head_index].finish) {
             output.info = buffer[head_index];
+            output.info.busy = true;
             output.index = head_index;
             size--;
             buffer[head_index].busy = false;
@@ -59,6 +61,12 @@ public:
         if (input.busy) {
             return false;
         }
+        if (decode.opr == operation::Stop) {
+            input.busy = true;
+            input.opr = decode.opr;
+            input.finish = true;
+            return true;
+        }
         table new_input;
         new_input.opr = decode.opr;
         new_input.busy = true;
@@ -68,7 +76,7 @@ public:
         input = new_input;
         if (decode.opr != operation::Sb && decode.opr != operation::Sh && decode.opr != operation::Sw &&
             decode.opr != operation::Beq && decode.opr != operation::Bge && decode.opr != operation::Bgeu &&
-            decode.opr != operation::Blt && decode.opr != operation::Bltu && decode.opr != operation::Bne) {
+            decode.opr != operation::Blt && decode.opr != operation::Bltu && decode.opr != operation::Bne && new_input.dest != 0) {
             reg.set_reordered_id(new_input.dest, tail_index);
         }
         return true;
@@ -93,5 +101,5 @@ public:
         }
     }
 };
-
+}
 #endif

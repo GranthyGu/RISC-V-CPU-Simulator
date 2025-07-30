@@ -5,6 +5,7 @@
 #include <string>
 #include <cstdint>
 
+namespace Granthy {
 enum operation {
     Add, Sub, Addi,
     And, Andi, Or, Ori, Xor, Xori,
@@ -15,6 +16,7 @@ enum operation {
     Beq, Bge, Bgeu, Blt, Bltu, Bne, Jal, Jalr,
     Auipc, Lui, Ebreak, Ecall,
     Mul,
+    Stop,
 };
 enum type {
     R, I, I_, S, B, U, J,
@@ -64,8 +66,14 @@ public:
     Decoder() = default;
     void do_operation() {
         if (!output.busy && input.busy) {
-            code = input.code;
+            uint32_t code = input.code;
             type oper_type = judge_the_type(code);
+            if (code == 0x0FF00513) {
+                output.opr = operation::Stop;
+                output.busy = true;
+                input.busy = false;
+                return;
+            }
             if (oper_type == type::R) {
                 uint32_t funct7 = code >> 25;
                 uint32_t rs2 = (code << 7) >> 27;
@@ -87,8 +95,6 @@ public:
                 } else if (funct3 == 1) {
                     output.opr = operation::Sll;
                 } else if (funct3 == 5) {
-                    output.opr = operation::Srl;
-                } else if (funct3 == 5) {
                     if (funct7 == 0) {
                         output.opr = operation::Srl;
                     } else {
@@ -104,7 +110,8 @@ public:
                 output.value_3 = rs2;
             } else if (oper_type == type::I) {
                 uint32_t opcode = (code << 25) >> 25;
-                uint32_t imm = code >> 20;
+                uint32_t imm_12 = code >> 20;
+                uint32_t imm = (imm_12 & 0x800) ? (imm_12 | 0xFFFFF000) : imm_12;
                 uint32_t rs1 = (code << 12) >> 27;
                 uint32_t funct3 = (code << 17) >> 29;
                 uint32_t rd = (code << 20) >> 27;
@@ -172,7 +179,8 @@ public:
                 uint32_t rs1 = (code << 12) >> 27;
                 uint32_t funct3 = (code << 17) >> 29;
                 uint32_t imm2 = (code << 20) >> 27;
-                uint32_t imm = (imm1 << 5) + imm2;
+                uint32_t imm_12 = (imm1 << 5) + imm2;
+                uint32_t imm = (imm_12 & 0x800) ? (imm_12 | 0xFFFFF000) : imm_12;
                 if (funct3 == 0) {
                     output.opr = operation::Sb;
                 } else if (funct3 == 1) {
@@ -191,7 +199,8 @@ public:
                 uint32_t funct3 = (code << 17) >> 29;
                 uint32_t imm3 = (code << 20) >> 28;
                 uint32_t imm4 = (code << 24) >> 31;
-                uint32_t imm = (imm1 << 12) + (imm4 << 11) + (imm2 << 5) + (imm3 << 1);
+                uint32_t imm_13 = (imm1 << 12) + (imm4 << 11) + (imm2 << 5) + (imm3 << 1);
+                uint32_t imm = (imm_13 & 0x1000) ? (imm_13 | 0xFFFFE000) : imm_13;
                 if (funct3 == 0) {
                     output.opr = operation::Beq;
                 } else if (funct3 == 5) {
@@ -202,7 +211,9 @@ public:
                     output.opr = operation::Blt;
                 } else if (funct3 == 1) {
                     output.opr = operation::Bne;
-                }
+                } else if (funct3 == 6) {
+                    output.opr = operation::Bltu;
+                } 
                 output.value_1 = rs1;
                 output.value_2 = rs2;
                 output.value_3 = imm;
@@ -212,7 +223,8 @@ public:
                 uint32_t imm3 = (code << 11) >> 31;
                 uint32_t imm4 = (code << 12) >> 24;
                 uint32_t rd = (code << 20) >> 27;
-                uint32_t imm = (imm1 << 20) + (imm4 << 12) + (imm3 << 11) + (imm2 << 1);
+                uint32_t imm_21 = (imm1 << 20) + (imm4 << 12) + (imm3 << 11) + (imm2 << 1);
+                uint32_t imm = (imm_21 & 0x100000) ? (imm_21 | 0xFFE00000) : imm_21;
                 output.opr = operation::Jal;
                 output.value_1 = rd;
                 output.value_2 = imm;
@@ -236,7 +248,10 @@ public:
     decoder_output get_output() {
         return output;
     }
-    void set_input(uint32_t input_) {input = input_;}
+    void set_input(uint32_t input_) {
+        input.code = input_;
+        input.busy = true;
+    }
     uint32_t get_value1() {
         return output.value_1;
     }
@@ -248,8 +263,9 @@ public:
     }
     void flush() {
         output.busy = false;
+        input.busy = true;
     }
 };
-
+}
 
 #endif      // DECODER_HPP

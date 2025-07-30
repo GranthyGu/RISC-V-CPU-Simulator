@@ -2,9 +2,9 @@
 #define LSB_HPP
 
 #include "Decoder.hpp"
-#include "ROB.hpp"
 #include "RS.hpp"
 
+namespace Granthy {
 struct LSB_entry {
     operation opr;
     bool busy = false;
@@ -32,24 +32,26 @@ public:
             output = queue_[0];
             if (queue_[0].ready) {
                 output.busy = true;
-                for (int i = 0; i < 2; i++) {
+                for (int i = 0; i < 7; i++) {
                     queue_[i] = queue_[i + 1];
                 }
+                queue_[size_ - 1].busy = false;
+                size_--;
             }
         }
         return;
     }
     void set_input(LSB_entry input_) {input = input_;}
     LSB_entry get_output() {return output;}
-    bool set_input_from_decoder(decoder_output decode, table ROB_order) {
+    bool set_input_from_decoder(decoder_output decode, uint32_t ROB_order) {
         LSB_entry new_input;
         new_input.opr = decode.opr;
-        new_input.index_ROB = ROB_order.index;
+        new_input.index_ROB = ROB_order;
         new_input.busy = true;
         new_input.ready = false;
         if (decode.opr == operation::Lb || decode.opr == operation::Lbu || decode.opr == operation::Sb) {
             new_input.bytes = 1;
-        } else if (decode.opr == operation::Lh || decode.opr == operation::Lhu || decode.opr == Sh) {
+        } else if (decode.opr == operation::Lh || decode.opr == operation::Lhu || decode.opr == operation::Sh) {
             new_input.bytes = 2;
         } else if (decode.opr == operation::Lw || decode.opr == operation::Sw) {
             new_input.bytes = 4;
@@ -75,5 +77,6 @@ public:
         }
     }
 };
+}
 
 #endif      // LSB_HPP

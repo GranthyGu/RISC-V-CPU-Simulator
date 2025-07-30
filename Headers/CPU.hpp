@@ -11,6 +11,7 @@
 #include "RS.hpp"
 #include <iostream>
 
+namespace Granthy {
 class CPU {
 private:
     Register reg;
@@ -24,11 +25,13 @@ private:
     uint32_t last_PC = 0;
     uint32_t clk = 0;
     bool wait = false;      // Use for Jalr
+    std::pair<uint32_t, uint32_t> data_for_jalr;
     bool reset = false;
     int predict_correct = 0;
     int predict_wrong = 0;
     bool first_flush = false;
-    std::pair<uint32_t, uint32_t> data_for_jalr;
+    bool stop = false;
+    bool finish = false;
     void Wire_mem_decoder() {
         if (!decoder.input.busy) {
             uint32_t pos = PC / 4;
@@ -37,13 +40,17 @@ private:
         }
     }
     void Wire_decoder_ROB() {
+        if (decoder.output.opr == operation::Stop) {
+            decoder.output.busy = false;
+            rob.set_input_by_decoder(decoder.output, -1, reg);
+        }
         if (decoder.output.busy && !rob.input.busy) {
             rob.set_input_by_decoder(decoder.output, last_PC, reg);
         }
     }
     void Wire_decoder_RS() {
         if (decoder.output.busy && !rs.input.busy) {
-            rs.set_input_by_decoder(decoder.output, reg, rob.input);
+            rs.set_input_by_decoder(decoder.output, reg, rob.input.index, rob.input.cur_PC);
         }
     }
     void Wire_decoder_LSB() {
@@ -52,7 +59,7 @@ private:
                 decoder.output.opr == operation::Lh || decoder.output.opr == operation::Lhu || 
                 decoder.output.opr == operation::Lw || decoder.output.opr == operation::Sb || 
                 decoder.output.opr == operation::Sh || decoder.output.opr == operation::Sw) {
-                lsb.set_input_from_decoder(decoder.output, rob.input);
+                lsb.set_input_from_decoder(decoder.output, rob.input.index);
             }
             decoder.output.busy = false;
         }
@@ -99,12 +106,12 @@ private:
     }
     void Wire_ROB_RS() {
         if (rob.output.info.busy) {
-            rs.get_broadcast_from_ROB(rob.output, reg);
+            rs.get_broadcast_from_ROB(rob.output.index, rob.output.info.dest, reg);
         }
     }
     void Wire_ROB_RF() {
         if (rob.output.info.busy) {
-            reg.get_broadcast_from_ROB(rob.output);
+            reg.get_broadcast_from_ROB(rob.output.info.dest, rob.output.info.opr, rob.output.info.value, rob.output.index);
         }
     }
     void Wire_ROB_PC() {
@@ -127,15 +134,20 @@ private:
                 uint32_t imm = data_for_jalr.second;
                 last_PC = broadcast.info.cur_PC;
                 PC = reg.read_register(rs1) + imm;
+            } else if (broadcast.info.opr == operation::Stop) {
+                finish = true;
             }
         }
     }
 public:
     CPU() = default;
     uint32_t get_PC() {return PC;}
+    void initialize() {
+        memory.initialize();
+    }
     std::pair<bool, uint32_t> work() {
         clk++;
-        if (PC == -1) {
+        if (finish) {
             return std::pair<bool, uint32_t>(true, reg.read_register(10));
         }
         if (reset) {
@@ -156,10 +168,8 @@ public:
                 last_PC = PC;
                 PC += 4;
             }
-        } else if (wait) {
+        } else if (wait || stop) {
             Wire_decoder_ROB();
-            Wire_decoder_RS();
-            Wire_decoder_LSB();
             Wire_RS_LSB();
             Wire_RS_ALU();
             Wire_LSB_mem();
@@ -168,7 +178,6 @@ public:
             Wire_ROB_RS();
             Wire_ROB_RF();
             Wire_ROB_PC();
-            decoder.do_operation();
             rs.do_operation();
             alu.do_operation();
             memory.do_operation();
@@ -204,12 +213,16 @@ public:
             } else if (decoder.output.opr == operation::Jalr) {
                 wait = true;
                 data_for_jalr = std::pair<uint32_t, uint32_t>(decoder.get_value2(), decoder.get_value3());
+            } else if (decoder.output.opr == operation::Stop) {
+                stop = true;
             } else {
                 last_PC = PC;
                 PC += 4;
             }
         }
+        return std::pair<bool, uint32_t>(false, 0);
     }
 };
+}
 
 #endif      // CPU_HPP

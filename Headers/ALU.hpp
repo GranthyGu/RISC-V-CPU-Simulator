@@ -5,6 +5,7 @@
 #include "RS.hpp"
 #include <iostream>
 
+namespace Granthy {
 struct ALU_input {
     operation opr;
     uint32_t value1 = 0;
@@ -46,7 +47,7 @@ public:
         } else if (input.opr == operation::Srl) {
             output.output = input.value1 >> input.value2;
         } else if (input.opr == operation::Sra) {
-            output.output = static_cast<uint32_t>(static_cast<int32_t>(input.value1) << input.value2);
+            output.output = static_cast<uint32_t>(static_cast<int32_t>(input.value1) >> input.value2);
         } else if (input.opr == operation::Slt) {
             output.output = (static_cast<int32_t>(input.value1) < static_cast<int32_t>(input.value2));
         } else if (input.opr == operation::Sltu) {
@@ -64,7 +65,7 @@ public:
         } else if (input.opr == operation::Srli) {
             output.output = input.value1 >> input.imm;
         } else if (input.opr == operation::Srai) {
-            output.output = static_cast<uint32_t>(static_cast<int32_t>(input.value1) << input.imm);
+            output.output = static_cast<uint32_t>(static_cast<int32_t>(input.value1) >> input.imm);
         } else if (input.opr == operation::Slti) {
             output.output = (static_cast<int32_t>(input.value1) < static_cast<int32_t>(input.imm));
         } else if (input.opr == operation::Sltiu) {
@@ -87,6 +88,8 @@ public:
             output.output = input.value1 + input.imm;
         } else if (input.opr == operation::Auipc) {
             output.output = input.value1 + input.imm;
+        } else if (input.opr == operation::Lui) {
+            output.output = input.imm;
         }
     }
     void set_input(const ALU_input& input_) {input = input_;}
@@ -109,5 +112,6 @@ public:
         input.busy = output.busy = false;
     }
 };
+}
 
 #endif      // ALU_HPP

@@ -7,6 +7,7 @@
 #include "Decoder.hpp"
 #include "LSB.hpp"
 
+namespace Granthy {
 enum Type {
     load, store,
 };
@@ -173,6 +174,7 @@ public:
         new_input.ROB_index = input_.index_ROB;
         new_input.value = input_.value;
         input = new_input;
+        return true;
     }
     memory_output get_output() {return output;}
     void pop_queue() {
@@ -196,7 +198,6 @@ public:
                 std::string info = skip_spaces(line);
                 for (int i = 0; i < info.length() / 8; i++) {
                     std::string str_ = info.substr(i * 8, 8);
-                    std::string str;
                     std::string str = str_.substr(6, 2) + str_.substr(4, 2) + 
                                 str_.substr(2, 2) + str_.substr(0, 2);
                     uint32_t pos = std::stoul(str, nullptr, 16);
@@ -294,5 +295,6 @@ public:
         }
     }
 };
+}
 
 #endif      // MEMORY_HPP
