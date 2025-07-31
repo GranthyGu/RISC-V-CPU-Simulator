@@ -57,6 +57,8 @@ private:
             }
             decoder.output.busy = false;
             return true;
+        } else if (!decoder.output.busy) {
+            return true;
         } else {
             return false;
         }
@@ -234,9 +236,10 @@ public:
             lsb.do_operation();
         } else {
             Wire_mem_decoder();
-            Wire_decoder_ROB();
-            Wire_decoder_RS();
-            Wire_decoder_LSB();
+            // Wire_decoder_ROB();
+            // Wire_decoder_RS();
+            // Wire_decoder_LSB();
+            bool flag = Wire_decoder();
             Wire_RS_LSB();
             Wire_RS_ALU();
             Wire_LSB_mem();
@@ -254,7 +257,10 @@ public:
             memory.do_operation();
             rob.do_operation();
             lsb.do_operation();
-            // std::cout << std::hex << PC << ' ' << reg.read_register(15) << ' ' << reg.read_register(14) << "$$" << std::endl;
+            // std::cout << std::hex << PC << ' '<< rob.size << std::endl;
+            if (!flag) {
+                return std::pair<bool, uint32_t>(false, 0);
+            }
             if (decoder.output.opr == operation::Beq || decoder.output.opr == operation::Bge || 
                 decoder.output.opr == operation::Bgeu || decoder.output.opr == operation::Blt || 
                 decoder.output.opr == operation::Bltu || decoder.output.opr == operation::Bne) {

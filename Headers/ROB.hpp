@@ -28,7 +28,7 @@ struct ROB_output {     // Used to do broadcast.
 class ROB {
 public:
     table input;
-    table buffer[2000];    // Store the inputs.
+    table buffer[MAX];    // Store the inputs.
     ROB_output output;
     int head_index = 0;
     int tail_index = 0;
@@ -37,11 +37,11 @@ public:
     ROB() = default;
     // A function to do operator in ROB, from input -> output.
     void do_operation() {
-        if (input.busy && size < 2000) {
+        if (input.busy && size < MAX) {
             buffer[tail_index] = input;
             input.busy = false;
             size++;
-            tail_index = (tail_index + 1) % 2000;
+            tail_index = (tail_index + 1) % MAX;
         }
         if (!output.info.busy && buffer[head_index].finish && size > 0) {
             output.info = buffer[head_index];
@@ -49,7 +49,7 @@ public:
             output.index = head_index;
             size--;
             buffer[head_index].busy = false;
-            head_index = (head_index + 1) % 2000;
+            head_index = (head_index + 1) % MAX;
         }
         return;
     }
@@ -88,7 +88,7 @@ public:
     ROB_output get_output() {return output;}
     void flush() {
         input.busy = output.info.busy = false;
-        for (int i = 0; i < 2000; i++) {
+        for (int i = 0; i < MAX; i++) {
             buffer[i].busy = false;
         }
         size = 0;

@@ -19,12 +19,12 @@ struct LSB_entry {
 class LSB {
 public:
     LSB_entry input;
-    LSB_entry queue_[2000];
+    LSB_entry queue_[MAX];
     LSB_entry output;
     size_t size_ = 0;
     LSB() = default;
     void do_operation() {
-        if (input.busy && size_ < 2000) {
+        if (input.busy && size_ < MAX) {
             queue_[size_] = input;
             size_++;
             input.busy = false;
@@ -33,7 +33,7 @@ public:
             if (queue_[0].ready) {
                 output = queue_[0];
                 output.busy = true;
-                for (int i = 0; i < 1999; i++) {
+                for (int i = 0; i < MAX - 1; i++) {
                     queue_[i] = queue_[i + 1];
                 }
                 queue_[size_ - 1].busy = false;
@@ -62,7 +62,7 @@ public:
         return true;
     }
     bool set_by_RS(RS_entry output_) {
-        for (int i = 0; i < 2000; i++) {
+        for (int i = 0; i < MAX; i++) {
             if (queue_[i].index_ROB == output_.index) {
                 queue_[i].ready = true;
                 queue_[i].value = output_.vk;
@@ -74,7 +74,7 @@ public:
     }
     void flush() {
         input.busy = output.busy = false;
-        for (int i = 0; i < 2000; i++) {
+        for (int i = 0; i < MAX; i++) {
             queue_[i].busy = false;
         }
         size_ = 0;
