@@ -49,6 +49,11 @@ class Register {
             registers[dest] = value;
         }
     }
+    void flush() {
+        for (int i = 0; i < 32; i++) {
+            reordered_id[i] = -1;
+        }
+    }
 };
 }
 

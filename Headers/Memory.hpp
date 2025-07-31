@@ -13,9 +13,9 @@ enum Type {
 };
 
 struct instruction {
-    uint32_t address;
-    uint8_t input_data;
-    uint8_t fetched_data;
+    uint32_t address = 0;
+    uint8_t input_data = 0;
+    uint8_t fetched_data = 0;
     Type type;
     bool finished = false;
 };
@@ -37,15 +37,16 @@ struct memory_output {
 
 class Memory {
 public:
-    uint32_t memory[0x2500] = {0};
+    uint32_t memory[0x10000] = {0};
     int current_address = 0;
     memory_input input;
-    memory_input queue[8];  // To instore the value that before the operation "Store" did.
+    memory_input queue[24];  // To instore the value that before the operation "Store" did.
     memory_output output;
-    instruction bytes[4];   // The operation on each byte, corresponding to the input.
-    size_t queue_size = 0;
-    size_t byte_num = 0;
+    instruction bytes[4] = {};   // The operation on each byte, corresponding to the input.
+    int queue_size = 0;
+    int byte_num = 0;
     bool reset = false;     // reset = true, when the predection is false.
+    bool start_to_store = false;
     uint32_t parse_address(std::string line) {
         std::string address = line.substr(1, 8);
         uint32_t address_ = std::stoul(address, nullptr, 16);
@@ -134,11 +135,12 @@ public:
             bytes[3].address = input.address;
             bytes[3].input_data = (input.value) & 0xFF;
             bytes[3].finished = false;
+            byte_num = 4;
         }
     }
     void check_complete(uint32_t result) {
         if (bytes[0].type == Type::store) {
-            if (!reset) {
+            if (!reset && start_to_store) {
                 memory_input new_reserved = {result, input.address, input.opr, false, -1, -1};
                 queue[queue_size] = new_reserved;
                 queue_size++;
@@ -177,17 +179,6 @@ public:
         return true;
     }
     memory_output get_output() {return output;}
-    void pop_queue() {
-        if (queue_size == 0) {
-            return;
-        }
-        for (int i = 0; i < queue_size - 1; i++) {
-            queue[i] = queue[i + 1];
-        }
-        if (queue_size > 0) {
-            queue_size--;
-        }
-    }
     void initialize() {
         std::string line;
         while (std::getline(std::cin, line)) {
@@ -239,10 +230,14 @@ public:
         }
         memory[num] = number; 
     }
+    void clear_the_queue() {
+        queue_size = 0;
+    }
     void do_operation() {
         if (reset) {         // Clear the input and the queue.
             if (queue_size == 0 && input.clk == -1) {
                 reset = false;      // Already cleared all the inputs.
+                start_to_store = false;
             }
             if (queue_size > 0 && input.clk == -1) {
                 input = queue[queue_size - 1];
@@ -252,43 +247,42 @@ public:
                 input.finished = false;
             }
         }
-        if (input.clk == -1) {
-            return;
-        }
-        if (input.clk == 0) {
-            decode_the_operation();     // Decode the operation in the first clock time.
-        }
-        input.clk++;
-        bool finished = true;
-        // Then do the operation when clk == 3. Check the value of the clock first.
-        for (int i = 0; i < byte_num; i++) {
-            if (bytes[i].finished == false) {
-                if (bytes[i].type == Type::load) {
-                    if (input.clk < 3){      // Not the time to submit!
-                        finished = false;
-                        continue;
+        if (input.clk != -1) {
+            if (input.clk == 0) {
+                decode_the_operation();     // Decode the operation in the first clock time.
+            }
+            input.clk++;
+            bool finished = true;
+            // Then do the operation when clk == 3. Check the value of the clock first.
+            for (int i = 0; i < byte_num; i++) {
+                if (bytes[i].finished == false) {
+                    if (bytes[i].type == Type::load) {
+                        if (input.clk < 3){      // Not the time to submit!
+                            finished = false;
+                            continue;
+                        }
+                        bytes[i].finished = true;
+                        bytes[i].fetched_data = read_a_byte(bytes[i].address);
+                    } else if (bytes[i].type == Type::store) {
+                        if (input.clk < 3){      // Not the time to submit!
+                            finished = false;
+                            continue;
+                        }
+                        bytes[i].fetched_data = read_a_byte(bytes[i].address);
+                        bytes[i].finished = true;
+                        write_a_byte(bytes[i].input_data, bytes[i].address);
                     }
-                    bytes[i].finished = true;
-                    bytes[i].fetched_data = read_a_byte(bytes[i].address);
-                } else if (bytes[i].type == Type::store) {
-                    if (input.clk < 3){      // Not the time to submit!
-                        finished = false;
-                        continue;
-                    }
-                    bytes[i].fetched_data = read_a_byte(bytes[i].address);
-                    bytes[i].finished = true;
-                    write_a_byte(bytes[i].input_data, bytes[i].address);
                 }
             }
-        }
-        input.finished = finished;
-        if (!output.busy && input.finished) {
-            uint32_t result = 0;
-            for (int i = 0; i < byte_num; i++) {
-                result = result << 8;
-                result = result | static_cast<uint32_t>(bytes[i].fetched_data);
+            input.finished = finished;
+            if (!output.busy && input.finished) {
+                uint32_t result = 0;
+                for (int i = 0; i < byte_num; i++) {
+                    result = result << 8;
+                    result = result | static_cast<uint32_t>(bytes[i].fetched_data);
+                }
+                check_complete(result);
             }
-            check_complete(result);
         }
         if (output.ROB_index == -1) {
             output.busy = false;

@@ -53,17 +53,17 @@ public:
         } else if (input.opr == operation::Sltu) {
             output.output = (input.value1 < input.value2);
         } else if (input.opr == operation::Addi) {
-            output.output = input.value1 + input.imm;
+            output.output = input.value1 + static_cast<int32_t>(input.imm);
         } else if (input.opr == operation::Andi) {
-            output.output = input.value1 & input.imm;
+            output.output = input.value1 & static_cast<int32_t>(input.imm);
         } else if (input.opr == operation::Ori) {
-            output.output = input.value1 | input.imm;
+            output.output = input.value1 | static_cast<int32_t>(input.imm);
         } else if (input.opr == operation::Xori) {
-            output.output = input.value1 ^ input.imm;
+            output.output = input.value1 ^ static_cast<int32_t>(input.imm);
         } else if (input.opr == operation::Slli) {
-            output.output = input.value1 << input.imm;
+            output.output = input.value1 << static_cast<int32_t>(input.imm);
         } else if (input.opr == operation::Srli) {
-            output.output = input.value1 >> input.imm;
+            output.output = input.value1 >> static_cast<int32_t>(input.imm);
         } else if (input.opr == operation::Srai) {
             output.output = static_cast<uint32_t>(static_cast<int32_t>(input.value1) >> input.imm);
         } else if (input.opr == operation::Slti) {
@@ -83,13 +83,13 @@ public:
         } else if (input.opr == operation::Bltu) {
             output.output = input.value1 < input.value2;
         } else if (input.opr == operation::Jalr) {
-            output.output = input.value1 + input.imm;
+            output.output = input.value1 + static_cast<int32_t>(input.imm);
         } else if (input.opr == operation::Jal) {
-            output.output = input.value1 + input.imm;
+            output.output = input.value1 + static_cast<int32_t>(input.imm);
         } else if (input.opr == operation::Auipc) {
-            output.output = input.value1 + input.imm;
+            output.output = input.value1 + static_cast<int32_t>(input.imm);
         } else if (input.opr == operation::Lui) {
-            output.output = input.imm;
+            output.output = static_cast<int32_t>(input.imm);
         }
     }
     void set_input(const ALU_input& input_) {input = input_;}

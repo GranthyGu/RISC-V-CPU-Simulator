@@ -126,6 +126,8 @@ private:
                     predict_wrong++;
                     PC = broadcast.info.cur_PC;
                 } else {
+                    memory.start_to_store = false;
+                    memory.clear_the_queue();
                     predict_correct++;
                 }
             } else if (broadcast.info.opr == operation::Jalr) {
@@ -158,6 +160,7 @@ public:
                 alu.flush();
                 rob.flush();
                 lsb.flush();
+                reg.flush();
                 first_flush = false;
             } 
             if (memory.reset) {
@@ -165,19 +168,40 @@ public:
             }
             if (!memory.reset) {
                 reset = false;
+                wait = false;
                 last_PC = PC;
                 PC += 4;
             }
-        } else if (wait || stop) {
+        } else if (stop) {
             Wire_decoder_ROB();
             Wire_RS_LSB();
             Wire_RS_ALU();
             Wire_LSB_mem();
             Wire_mem_ROB();
             Wire_ALU_ROB();
-            Wire_ROB_RS();
             Wire_ROB_RF();
+            Wire_ROB_RS();
             Wire_ROB_PC();
+            rs.do_operation();
+            alu.do_operation();
+            memory.do_operation();
+            rob.do_operation();
+            lsb.do_operation();
+        } else if (wait) {
+            Wire_decoder_ROB();
+            Wire_decoder_RS();
+            Wire_decoder_LSB();
+            Wire_RS_LSB();
+            Wire_RS_ALU();
+            Wire_LSB_mem();
+            Wire_mem_ROB();
+            Wire_ALU_ROB();
+            Wire_ROB_RF();
+            Wire_ROB_RS();
+            Wire_ROB_PC();
+            if (!wait || reset) {
+                return std::pair<bool, uint32_t>(false, 0);
+            }
             rs.do_operation();
             alu.do_operation();
             memory.do_operation();
@@ -193,25 +217,31 @@ public:
             Wire_LSB_mem();
             Wire_mem_ROB();
             Wire_ALU_ROB();
-            Wire_ROB_RS();
             Wire_ROB_RF();
+            Wire_ROB_RS();
             Wire_ROB_PC();
+            if (reset) {
+                return std::pair<bool, uint32_t>(false, 0);
+            }
             decoder.do_operation();
             rs.do_operation();
             alu.do_operation();
             memory.do_operation();
             rob.do_operation();
             lsb.do_operation();
+            std::cout << std::hex << PC << ' ' << memory.get_mem(0x11b0 / 4) << ' ' << reg.read_register(15) << std::endl;
             if (decoder.output.opr == operation::Beq || decoder.output.opr == operation::Bge || 
                 decoder.output.opr == operation::Bgeu || decoder.output.opr == operation::Blt || 
                 decoder.output.opr == operation::Bltu || decoder.output.opr == operation::Bne) {
                 last_PC = PC;
                 PC += decoder.get_value3();     // Predict that is right!
+                memory.start_to_store = true;
             } else if (decoder.output.opr == operation::Jal) {
                 last_PC = PC;
                 PC += decoder.get_value2();
             } else if (decoder.output.opr == operation::Jalr) {
                 wait = true;
+                last_PC += 4;
                 data_for_jalr = std::pair<uint32_t, uint32_t>(decoder.get_value2(), decoder.get_value3());
             } else if (decoder.output.opr == operation::Stop) {
                 stop = true;

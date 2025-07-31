@@ -11,8 +11,8 @@ struct RS_entry {
     size_t index = 0;
     uint32_t vj = 0;
     uint32_t vk = 0;
-    uint32_t Qj = -1;
-    uint32_t Qk = -1;
+    int Qj = -1;
+    int Qk = -1;
     size_t Dest = 0;
     uint32_t imm = 0;
 };
@@ -20,31 +20,32 @@ struct RS_entry {
 class RS {
 public:
     RS_entry input;
-    RS_entry Reservation_station[8];
+    RS_entry Reservation_station[24];
     RS_entry output;    // To LSB or ALU.
     size_t size_ = 0;
     RS() = default;
     void do_operation() {
-        if (input.busy && size_ < 8) {
+        if (input.busy && size_ < 24) {
             size_++;
-            for (int i = 0; i < 8; i++) {
+            for (int i = 0; i < 24; i++) {
                 if (!Reservation_station[i].busy) {
                     Reservation_station[i] = input;
+                    Reservation_station[i].busy = true;
                     input.busy = false;
                     break;
                 }
             }
         }
         if (!output.busy && size_ > 0) {
-            for (int i = 0; i < 8; i++) {
+            for (int i = 0; i < 24; i++) {
                 if (Reservation_station[i].busy && 
                     Reservation_station[i].Qj == -1 && 
                     Reservation_station[i].Qk == -1) {
                     output = Reservation_station[i];
-                    for (int j = i; j < 7; j++) {
+                    for (int j = i; j < 23; j++) {
                         Reservation_station[j] = Reservation_station[j + 1];
                     }
-                    Reservation_station[7].busy = false;
+                    Reservation_station[23].busy = false;
                     size_--;
                     break;
                 }
@@ -141,6 +142,12 @@ public:
                 new_entry.vk = reg.read_register(r2);
             }
         }
+        int dest = decode.value_1;
+        if (decode.opr != operation::Sb && decode.opr != operation::Sh && decode.opr != operation::Sw &&
+            decode.opr != operation::Beq && decode.opr != operation::Bge && decode.opr != operation::Bgeu &&
+            decode.opr != operation::Blt && decode.opr != operation::Bltu && decode.opr != operation::Bne && dest != 0) {
+            reg.set_reordered_id(dest, ROB_order);
+        }
         input = new_entry;
         return true;
     }
@@ -169,9 +176,10 @@ public:
     void flush() {
         input.busy = false;
         output.busy = false;
-        for (int i = 0; i < 8; i++) {
+        for (int i = 0; i < 24; i++) {
             Reservation_station[i].busy = false;
         }
+        size_ = 0;
     }
 };
 }

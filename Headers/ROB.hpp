@@ -14,7 +14,7 @@ struct table {
     operation opr;
     bool busy = false;
     bool finish = false;
-    uint32_t value = -1;
+    uint32_t value = 0;
     uint32_t cur_PC = 0;
     uint32_t dest = -1;
     int index;
@@ -28,7 +28,7 @@ struct ROB_output {     // Used to do broadcast.
 class ROB {
 public:
     table input;
-    table buffer[8];    // Store the inputs.
+    table buffer[24];    // Store the inputs.
     ROB_output output;
     int head_index = 0;
     int tail_index = 0;
@@ -37,22 +37,19 @@ public:
     ROB() = default;
     // A function to do operator in ROB, from input -> output.
     void do_operation() {
-        if (size == 8) {
-            return;
-        }
-        if (input.busy) {
+        if (input.busy && size < 24) {
             buffer[tail_index] = input;
             input.busy = false;
             size++;
-            tail_index = (tail_index + 1) % 8;
+            tail_index = (tail_index + 1) % 24;
         }
-        if (!output.info.busy && buffer[head_index].finish) {
+        if (!output.info.busy && buffer[head_index].finish && size > 0) {
             output.info = buffer[head_index];
             output.info.busy = true;
             output.index = head_index;
             size--;
             buffer[head_index].busy = false;
-            head_index = (head_index + 1) % 8;
+            head_index = (head_index + 1) % 24;
         }
         return;
     }
@@ -74,11 +71,6 @@ public:
         new_input.dest = decode.value_1;
         new_input.index = tail_index;
         input = new_input;
-        if (decode.opr != operation::Sb && decode.opr != operation::Sh && decode.opr != operation::Sw &&
-            decode.opr != operation::Beq && decode.opr != operation::Bge && decode.opr != operation::Bgeu &&
-            decode.opr != operation::Blt && decode.opr != operation::Bltu && decode.opr != operation::Bne && new_input.dest != 0) {
-            reg.set_reordered_id(new_input.dest, tail_index);
-        }
         return true;
     }
     void get_info_from_mem(memory_output mem_info) {
@@ -96,9 +88,11 @@ public:
     ROB_output get_output() {return output;}
     void flush() {
         input.busy = output.info.busy = false;
-        for (int i = 0; i < 8; i++) {
+        for (int i = 0; i < 24; i++) {
             buffer[i].busy = false;
         }
+        size = 0;
+        head_index = tail_index = 0;
     }
 };
 }

@@ -109,12 +109,12 @@ public:
                 output.value_2 = rs1;
                 output.value_3 = rs2;
             } else if (oper_type == type::I) {
-                uint32_t opcode = (code << 25) >> 25;
+                uint32_t opcode = code & 0x7F;
+                uint32_t rd = (code >> 7)  & 0x1F;
+                uint32_t funct3 = (code >> 12) & 0x7;
+                uint32_t rs1 = (code >> 15) & 0x1F;
                 uint32_t imm_12 = code >> 20;
                 uint32_t imm = (imm_12 & 0x800) ? (imm_12 | 0xFFFFF000) : imm_12;
-                uint32_t rs1 = (code << 12) >> 27;
-                uint32_t funct3 = (code << 17) >> 29;
-                uint32_t rd = (code << 20) >> 27;
                 if (funct3 == 0) {
                     if (opcode == 19) {
                         output.opr = operation::Addi;
@@ -219,11 +219,11 @@ public:
                 output.value_3 = imm;
             } else if (oper_type == type::J) {
                 uint32_t imm1 = code >> 31;
-                uint32_t imm2 = (code << 1) >> 21;
-                uint32_t imm3 = (code << 11) >> 31;
+                uint32_t imm2 = (code << 1) >> 22;
+                uint32_t imm3 = (code >> 20) & 0x1;
                 uint32_t imm4 = (code << 12) >> 24;
                 uint32_t rd = (code << 20) >> 27;
-                uint32_t imm_21 = (imm1 << 20) + (imm4 << 12) + (imm3 << 11) + (imm2 << 1);
+                uint32_t imm_21 = (imm1 << 20) | (imm4 << 12) | (imm3 << 11) | (imm2 << 1);
                 uint32_t imm = (imm_21 & 0x100000) ? (imm_21 | 0xFFE00000) : imm_21;
                 output.opr = operation::Jal;
                 output.value_1 = rd;
@@ -263,7 +263,7 @@ public:
     }
     void flush() {
         output.busy = false;
-        input.busy = true;
+        input.busy = false;
     }
 };
 }

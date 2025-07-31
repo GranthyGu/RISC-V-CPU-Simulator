@@ -18,21 +18,21 @@ struct LSB_entry {
 class LSB {
 public:
     LSB_entry input;
-    LSB_entry queue_[8];
+    LSB_entry queue_[16];
     LSB_entry output;
     size_t size_ = 0;
     LSB() = default;
     void do_operation() {
-        if (input.busy && size_ < 8) {
+        if (input.busy && size_ < 16) {
             queue_[size_] = input;
             size_++;
             input.busy = false;
         }
         if (!output.busy && size_ > 0) {
-            output = queue_[0];
             if (queue_[0].ready) {
+                output = queue_[0];
                 output.busy = true;
-                for (int i = 0; i < 7; i++) {
+                for (int i = 0; i < 15; i++) {
                     queue_[i] = queue_[i + 1];
                 }
                 queue_[size_ - 1].busy = false;
@@ -75,6 +75,7 @@ public:
         for (int i = 0; i < 8; i++) {
             queue_[i].busy = false;
         }
+        size_ = 0;
     }
 };
 }
