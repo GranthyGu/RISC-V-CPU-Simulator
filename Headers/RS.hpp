@@ -20,14 +20,14 @@ struct RS_entry {
 class RS {
 public:
     RS_entry input;
-    RS_entry Reservation_station[24];
+    RS_entry Reservation_station[2000];
     RS_entry output;    // To LSB or ALU.
     size_t size_ = 0;
     RS() = default;
     void do_operation() {
-        if (input.busy && size_ < 24) {
+        if (input.busy && size_ < 2000) {
             size_++;
-            for (int i = 0; i < 24; i++) {
+            for (int i = 0; i < 2000; i++) {
                 if (!Reservation_station[i].busy) {
                     Reservation_station[i] = input;
                     Reservation_station[i].busy = true;
@@ -37,15 +37,15 @@ public:
             }
         }
         if (!output.busy && size_ > 0) {
-            for (int i = 0; i < 24; i++) {
+            for (int i = 0; i < 2000; i++) {
                 if (Reservation_station[i].busy && 
                     Reservation_station[i].Qj == -1 && 
                     Reservation_station[i].Qk == -1) {
                     output = Reservation_station[i];
-                    for (int j = i; j < 23; j++) {
+                    for (int j = i; j < 1999; j++) {
                         Reservation_station[j] = Reservation_station[j + 1];
                     }
-                    Reservation_station[23].busy = false;
+                    Reservation_station[1999].busy = false;
                     size_--;
                     break;
                 }
@@ -160,7 +160,7 @@ public:
             input.Qk = -1;
             input.vk = reg.read_register(dest);
         }
-        for (int i = 0; i < 8; i++) {
+        for (int i = 0; i < 2000; i++) {
             if (Reservation_station[i].busy) {
                 if (Reservation_station[i].Qj == index) {
                     Reservation_station[i].Qj = -1;
@@ -176,7 +176,7 @@ public:
     void flush() {
         input.busy = false;
         output.busy = false;
-        for (int i = 0; i < 24; i++) {
+        for (int i = 0; i < 2000; i++) {
             Reservation_station[i].busy = false;
         }
         size_ = 0;

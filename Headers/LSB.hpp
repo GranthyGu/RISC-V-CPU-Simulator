@@ -13,17 +13,18 @@ struct LSB_entry {
     uint32_t value = 0;     // It is the value to store. If load, value = 0.
     int index_ROB = 0;
     bool ready = false;
+    bool to_store = false;
 };
 
 class LSB {
 public:
     LSB_entry input;
-    LSB_entry queue_[16];
+    LSB_entry queue_[2000];
     LSB_entry output;
     size_t size_ = 0;
     LSB() = default;
     void do_operation() {
-        if (input.busy && size_ < 16) {
+        if (input.busy && size_ < 2000) {
             queue_[size_] = input;
             size_++;
             input.busy = false;
@@ -32,7 +33,7 @@ public:
             if (queue_[0].ready) {
                 output = queue_[0];
                 output.busy = true;
-                for (int i = 0; i < 15; i++) {
+                for (int i = 0; i < 1999; i++) {
                     queue_[i] = queue_[i + 1];
                 }
                 queue_[size_ - 1].busy = false;
@@ -43,12 +44,13 @@ public:
     }
     void set_input(LSB_entry input_) {input = input_;}
     LSB_entry get_output() {return output;}
-    bool set_input_from_decoder(decoder_output decode, uint32_t ROB_order) {
+    bool set_input_from_decoder(decoder_output decode, uint32_t ROB_order, bool flag) {
         LSB_entry new_input;
         new_input.opr = decode.opr;
         new_input.index_ROB = ROB_order;
         new_input.busy = true;
         new_input.ready = false;
+        new_input.to_store = flag;
         if (decode.opr == operation::Lb || decode.opr == operation::Lbu || decode.opr == operation::Sb) {
             new_input.bytes = 1;
         } else if (decode.opr == operation::Lh || decode.opr == operation::Lhu || decode.opr == operation::Sh) {
@@ -60,7 +62,7 @@ public:
         return true;
     }
     bool set_by_RS(RS_entry output_) {
-        for (int i = 0; i < 8; i++) {
+        for (int i = 0; i < 2000; i++) {
             if (queue_[i].index_ROB == output_.index) {
                 queue_[i].ready = true;
                 queue_[i].value = output_.vk;
@@ -72,7 +74,7 @@ public:
     }
     void flush() {
         input.busy = output.busy = false;
-        for (int i = 0; i < 8; i++) {
+        for (int i = 0; i < 2000; i++) {
             queue_[i].busy = false;
         }
         size_ = 0;

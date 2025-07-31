@@ -32,11 +32,33 @@ private:
     bool first_flush = false;
     bool stop = false;
     bool finish = false;
+    bool LSB_to_store = false;
     void Wire_mem_decoder() {
         if (!decoder.input.busy) {
             uint32_t pos = PC / 4;
             uint32_t input_ = memory.get_mem(pos);
             decoder.set_input(input_);
+        }
+    }
+    bool Wire_decoder() {
+        if (decoder.output.opr == operation::Stop) {
+            decoder.output.busy = false;
+            rob.set_input_by_decoder(decoder.output, -1, reg);
+            return true;
+        }
+        if (decoder.output.busy && !rob.input.busy && !rs.input.busy && !lsb.input.busy) {
+            rob.set_input_by_decoder(decoder.output, last_PC, reg);
+            rs.set_input_by_decoder(decoder.output, reg, rob.input.index, rob.input.cur_PC);
+            if (decoder.output.opr == operation::Lb || decoder.output.opr == operation::Lbu || 
+                decoder.output.opr == operation::Lh || decoder.output.opr == operation::Lhu || 
+                decoder.output.opr == operation::Lw || decoder.output.opr == operation::Sb || 
+                decoder.output.opr == operation::Sh || decoder.output.opr == operation::Sw) {
+                lsb.set_input_from_decoder(decoder.output, rob.input.index, LSB_to_store);
+            }
+            decoder.output.busy = false;
+            return true;
+        } else {
+            return false;
         }
     }
     void Wire_decoder_ROB() {
@@ -59,7 +81,7 @@ private:
                 decoder.output.opr == operation::Lh || decoder.output.opr == operation::Lhu || 
                 decoder.output.opr == operation::Lw || decoder.output.opr == operation::Sb || 
                 decoder.output.opr == operation::Sh || decoder.output.opr == operation::Sw) {
-                lsb.set_input_from_decoder(decoder.output, rob.input.index);
+                lsb.set_input_from_decoder(decoder.output, rob.input.index, LSB_to_store);
             }
             decoder.output.busy = false;
         }
@@ -126,7 +148,7 @@ private:
                     predict_wrong++;
                     PC = broadcast.info.cur_PC;
                 } else {
-                    memory.start_to_store = false;
+                    LSB_to_store = false;
                     memory.clear_the_queue();
                     predict_correct++;
                 }
@@ -153,6 +175,7 @@ public:
             return std::pair<bool, uint32_t>(true, reg.read_register(10));
         }
         if (reset) {
+            // std::cout << PC << " !!" << std::endl;
             if (first_flush) {
                 memory.flush();
                 decoder.flush();
@@ -167,6 +190,7 @@ public:
                 memory.do_operation();
             }
             if (!memory.reset) {
+                LSB_to_store = false;
                 reset = false;
                 wait = false;
                 last_PC = PC;
@@ -188,6 +212,7 @@ public:
             rob.do_operation();
             lsb.do_operation();
         } else if (wait) {
+            // std::cout << reg.read_register(1) << "??" << std::endl;
             Wire_decoder_ROB();
             Wire_decoder_RS();
             Wire_decoder_LSB();
@@ -229,13 +254,13 @@ public:
             memory.do_operation();
             rob.do_operation();
             lsb.do_operation();
-            std::cout << std::hex << PC << ' ' << memory.get_mem(0x11b0 / 4) << ' ' << reg.read_register(15) << std::endl;
+            // std::cout << std::hex << PC << ' ' << reg.read_register(15) << ' ' << reg.read_register(14) << "$$" << std::endl;
             if (decoder.output.opr == operation::Beq || decoder.output.opr == operation::Bge || 
                 decoder.output.opr == operation::Bgeu || decoder.output.opr == operation::Blt || 
                 decoder.output.opr == operation::Bltu || decoder.output.opr == operation::Bne) {
                 last_PC = PC;
                 PC += decoder.get_value3();     // Predict that is right!
-                memory.start_to_store = true;
+                LSB_to_store = true;
             } else if (decoder.output.opr == operation::Jal) {
                 last_PC = PC;
                 PC += decoder.get_value2();
@@ -250,6 +275,7 @@ public:
                 PC += 4;
             }
         }
+        // std::cout << rob.output.info.cur_PC << ' ' << rob.output.info.opr << ' ' << rob.output.info.index << ' ' << rob.output.info.busy << ' ' << rob.size << " ROB" << std::endl; 
         return std::pair<bool, uint32_t>(false, 0);
     }
 };

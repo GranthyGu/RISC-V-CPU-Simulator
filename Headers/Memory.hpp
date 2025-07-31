@@ -26,6 +26,7 @@ struct memory_input {
     operation opr;
     bool finished = false;
     int ROB_index = 0;
+    bool to_store = false;
     int clk = -1;    // -1 means not busy, the operation done in clk == 3.
 };
 
@@ -140,8 +141,8 @@ public:
     }
     void check_complete(uint32_t result) {
         if (bytes[0].type == Type::store) {
-            if (!reset && start_to_store) {
-                memory_input new_reserved = {result, input.address, input.opr, false, -1, -1};
+            if (!reset && input.to_store) {
+                memory_input new_reserved = {result, input.address, input.opr, false, -1, false, -1};
                 queue[queue_size] = new_reserved;
                 queue_size++;
             }
@@ -175,6 +176,7 @@ public:
         new_input.opr = input_.opr;
         new_input.ROB_index = input_.index_ROB;
         new_input.value = input_.value;
+        new_input.to_store = input_.to_store;
         input = new_input;
         return true;
     }
@@ -237,14 +239,14 @@ public:
         if (reset) {         // Clear the input and the queue.
             if (queue_size == 0 && input.clk == -1) {
                 reset = false;      // Already cleared all the inputs.
-                start_to_store = false;
             }
             if (queue_size > 0 && input.clk == -1) {
-                input = queue[queue_size - 1];
-                queue_size--;
-                input.ROB_index = -1;
-                input.clk = 0;
-                input.finished = false;
+                // input = queue[queue_size - 1];
+                // queue_size--;
+                // input.ROB_index = -1;
+                // input.clk = 0;
+                // input.finished = false;
+                reset = false;
             }
         }
         if (input.clk != -1) {
