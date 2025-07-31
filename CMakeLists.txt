@@ -7,4 +7,4 @@ set(CMAKE_CXX_STANDARD 17)
 include_directories(Headers)
 
 # 收集所有头文件和源文件（这里只需要 main.cpp）
-add_executable(RISC-V-CPU-Simulator main.cpp)
+add_executable(code main.cpp)
