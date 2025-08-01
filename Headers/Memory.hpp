@@ -41,13 +41,11 @@ public:
     uint32_t memory[0x10000] = {0};
     int current_address = 0;
     memory_input input;
-    memory_input queue[24];  // To instore the value that before the operation "Store" did.
     memory_output output;
     instruction bytes[4] = {};   // The operation on each byte, corresponding to the input.
     int queue_size = 0;
     int byte_num = 0;
     bool reset = false;     // reset = true, when the predection is false.
-    bool start_to_store = false;
     uint32_t parse_address(std::string line) {
         std::string address = line.substr(1, 8);
         uint32_t address_ = std::stoul(address, nullptr, 16);
@@ -141,11 +139,7 @@ public:
     }
     void check_complete(uint32_t result) {
         if (bytes[0].type == Type::store) {
-            if (!reset && input.to_store) {
-                memory_input new_reserved = {result, input.address, input.opr, false, -1, false, -1};
-                queue[queue_size] = new_reserved;
-                queue_size++;
-            }
+            return;
         } else {
             if (input.opr == operation::Lb) {
                 result = static_cast<uint32_t>(static_cast<int32_t>(static_cast<int8_t>(static_cast<uint8_t>(result))));
@@ -176,7 +170,6 @@ public:
         new_input.opr = input_.opr;
         new_input.ROB_index = input_.index_ROB;
         new_input.value = input_.value;
-        new_input.to_store = input_.to_store;
         input = new_input;
         return true;
     }
@@ -237,16 +230,8 @@ public:
     }
     void do_operation() {
         if (reset) {         // Clear the input and the queue.
-            if (queue_size == 0 && input.clk == -1) {
+            if (queue_size >= 0 && input.clk == -1) {
                 reset = false;      // Already cleared all the inputs.
-            }
-            if (queue_size > 0 && input.clk == -1) {
-                // input = queue[queue_size - 1];
-                // queue_size--;
-                // input.ROB_index = -1;
-                // input.clk = 0;
-                // input.finished = false;
-                reset = false;
             }
         }
         if (input.clk != -1) {

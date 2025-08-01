@@ -32,7 +32,6 @@ private:
     bool first_flush = false;
     bool stop = false;
     bool finish = false;
-    bool LSB_to_store = false;
     void Wire_mem_decoder() {
         if (!decoder.input.busy) {
             uint32_t pos = PC / 4;
@@ -53,7 +52,7 @@ private:
                 decoder.output.opr == operation::Lh || decoder.output.opr == operation::Lhu || 
                 decoder.output.opr == operation::Lw || decoder.output.opr == operation::Sb || 
                 decoder.output.opr == operation::Sh || decoder.output.opr == operation::Sw) {
-                lsb.set_input_from_decoder(decoder.output, rob.input.index, LSB_to_store);
+                lsb.set_input_from_decoder(decoder.output, rob.input.index);
             }
             decoder.output.busy = false;
             return true;
@@ -83,7 +82,7 @@ private:
                 decoder.output.opr == operation::Lh || decoder.output.opr == operation::Lhu || 
                 decoder.output.opr == operation::Lw || decoder.output.opr == operation::Sb || 
                 decoder.output.opr == operation::Sh || decoder.output.opr == operation::Sw) {
-                lsb.set_input_from_decoder(decoder.output, rob.input.index, LSB_to_store);
+                lsb.set_input_from_decoder(decoder.output, rob.input.index);
             }
             decoder.output.busy = false;
         }
@@ -150,7 +149,6 @@ private:
                     predict_wrong++;
                     PC = broadcast.info.cur_PC;
                 } else {
-                    LSB_to_store = false;
                     memory.clear_the_queue();
                     predict_correct++;
                 }
@@ -177,7 +175,6 @@ public:
             return std::pair<bool, uint32_t>(true, reg.read_register(10));
         }
         if (reset) {
-            // std::cout << PC << " !!" << std::endl;
             if (first_flush) {
                 memory.flush();
                 decoder.flush();
@@ -192,7 +189,6 @@ public:
                 memory.do_operation();
             }
             if (!memory.reset) {
-                LSB_to_store = false;
                 reset = false;
                 wait = false;
                 last_PC = PC;
@@ -214,7 +210,6 @@ public:
             rob.do_operation();
             lsb.do_operation();
         } else if (wait) {
-            // std::cout << reg.read_register(1) << "??" << std::endl;
             Wire_decoder_ROB();
             Wire_decoder_RS();
             Wire_decoder_LSB();
@@ -236,9 +231,6 @@ public:
             lsb.do_operation();
         } else {
             Wire_mem_decoder();
-            // Wire_decoder_ROB();
-            // Wire_decoder_RS();
-            // Wire_decoder_LSB();
             bool flag = Wire_decoder();
             Wire_RS_LSB();
             Wire_RS_ALU();
@@ -257,7 +249,6 @@ public:
             memory.do_operation();
             rob.do_operation();
             lsb.do_operation();
-            // std::cout << std::hex << PC << ' '<< rob.size << std::endl;
             if (!flag) {
                 return std::pair<bool, uint32_t>(false, 0);
             }
@@ -266,7 +257,6 @@ public:
                 decoder.output.opr == operation::Bltu || decoder.output.opr == operation::Bne) {
                 last_PC = PC;
                 PC += decoder.get_value3();     // Predict that is right!
-                LSB_to_store = true;
             } else if (decoder.output.opr == operation::Jal) {
                 last_PC = PC;
                 PC += decoder.get_value2();
@@ -281,7 +271,6 @@ public:
                 PC += 4;
             }
         }
-        // std::cout << rob.output.info.cur_PC << ' ' << rob.output.info.opr << ' ' << rob.output.info.index << ' ' << rob.output.info.busy << ' ' << rob.size << " ROB" << std::endl; 
         return std::pair<bool, uint32_t>(false, 0);
     }
 };

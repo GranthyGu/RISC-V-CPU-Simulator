@@ -13,7 +13,6 @@ struct LSB_entry {
     uint32_t value = 0;     // It is the value to store. If load, value = 0.
     int index_ROB = 0;
     bool ready = false;
-    bool to_store = false;
 };
 
 class LSB {
@@ -44,13 +43,12 @@ public:
     }
     void set_input(LSB_entry input_) {input = input_;}
     LSB_entry get_output() {return output;}
-    bool set_input_from_decoder(decoder_output decode, uint32_t ROB_order, bool flag) {
+    bool set_input_from_decoder(decoder_output decode, uint32_t ROB_order) {
         LSB_entry new_input;
         new_input.opr = decode.opr;
         new_input.index_ROB = ROB_order;
         new_input.busy = true;
         new_input.ready = false;
-        new_input.to_store = flag;
         if (decode.opr == operation::Lb || decode.opr == operation::Lbu || decode.opr == operation::Sb) {
             new_input.bytes = 1;
         } else if (decode.opr == operation::Lh || decode.opr == operation::Lhu || decode.opr == operation::Sh) {
